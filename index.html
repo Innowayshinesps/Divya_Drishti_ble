@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLE Alert Sender - Web Bluetooth Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 4px solid #667eea;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status-dot.connected {
+            background: #28a745;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .info-grid {
+            display: grid;
+            gap: 10px;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .info-value {
+            color: #333;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            word-break: break-all;
+        }
+
+        .button-group {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        button {
+            padding: 16px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #connectBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #connectBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        #scanBtn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        #scanBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6);
+        }
+
+        #alertBtn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        #alertBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 87, 108, 0.6);
+        }
+
+        #disconnectBtn {
+            background: #6c757d;
+            color: white;
+        }
+
+        #disconnectBtn:hover:not(:disabled) {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .icon {
+            font-size: 20px;
+        }
+
+        .log-section {
+            margin-top: 25px;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .log-title {
+            font-weight: 600;
+            color: #333;
+        }
+
+        #clearLog {
+            background: #e9ecef;
+            color: #495057;
+            padding: 8px 16px;
+            font-size: 13px;
+            border-radius: 6px;
+        }
+
+        #clearLog:hover {
+            background: #dee2e6;
+        }
+
+        .log-container {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #d4d4d4;
+        }
+
+        .log-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log-container::-webkit-scrollbar-track {
+            background: #2d2d2d;
+            border-radius: 4px;
+        }
+
+        .log-container::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .log-time {
+            color: #6e7681;
+        }
+
+        .log-info {
+            color: #58a6ff;
+        }
+
+        .log-success {
+            color: #3fb950;
+        }
+
+        .log-error {
+            color: #f85149;
+        }
+
+        .log-warning {
+            color: #d29922;
+        }
+
+        .alert-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            border-left: 4px solid #28a745;
+        }
+
+        .alert-message.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .requirement {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #856404;
+        }
+
+        .debug-info {
+            background: #e7f3ff;
+            border: 1px solid #2196F3;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            color: #0d47a1;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 25px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            button {
+                padding: 14px 24px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔔 BLE Alert Sender</h1>
+        <p class="subtitle">Web Bluetooth → Flutter → Local Notification</p>
+
+        <div id="debugInfo" class="debug-info" style="display: none;">
+            <strong>Debug Info:</strong><br>
+            <span id="debugText"></span>
+        </div>
+
+        <div class="requirement">
+            ⚠️ <strong>Requirements:</strong> HTTPS or localhost, Chrome/Edge browser, Bluetooth enabled
+        </div>
+
+        <div id="alertMessage" class="alert-message">
+            ✅ Alert sent successfully!
+        </div>
+
+        <div class="status-card">
+            <div class="status-indicator">
+                <div id="statusDot" class="status-dot"></div>
+                <span id="statusText" class="status-text">Not Connected</span>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-row">
+                    <span class="info-label">Device:</span>
+                    <span id="deviceName" class="info-value">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Service UUID:</span>
+                    <span class="info-value">12345678-1234-1234-1234-1234567890ab</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Characteristic:</span>
+                    <span class="info-value">abcd1234-5678-1234-5678-abcdef123456</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="scanBtn">
+                <span class="icon">🔍</span>
+                <span>Scan for ANY BLE Device</span>
+            </button>
+
+            <button id="connectBtn">
+                <span class="icon">🔗</span>
+                <span>Connect to FlutterAlertDevice</span>
+            </button>
+            
+            <button id="alertBtn" disabled>
+                <span class="icon">🚨</span>
+                <span>Send ALERT Notification</span>
+            </button>
+            
+            <button id="disconnectBtn" disabled>
+                <span class="icon">⛔</span>
+                <span>Disconnect</span>
+            </button>
+        </div>
+
+        <div class="log-section">
+            <div class="log-header">
+                <span class="log-title">Activity Log</span>
+                <button id="clearLog">Clear</button>
+            </div>
+            <div id="logContainer" class="log-container">
+                <div class="log-entry log-info">
+                    <span class="log-time">[Ready]</span> Checking Web Bluetooth support...
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Web Bluetooth API Demo | Make sure Flutter app is advertising
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            SERVICE_UUID: '12345678-1234-1234-1234-1234567890ab',
+            CHARACTERISTIC_UUID: 'abcd1234-5678-1234-5678-abcdef123456',
+            DEVICE_NAME: 'FlutterAlertDevice'
+        };
+
+        // State
+        let bluetoothDevice = null;
+        let gattServer = null;
+        let characteristic = null;
+
+        // DOM Elements
+        const scanBtn = document.getElementById('scanBtn');
+        const connectBtn = document.getElementById('connectBtn');
+        const alertBtn = document.getElementById('alertBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const deviceName = document.getElementById('deviceName');
+        const logContainer = document.getElementById('logContainer');
+        const clearLogBtn = document.getElementById('clearLog');
+        const alertMessage = document.getElementById('alertMessage');
+        const debugInfo = document.getElementById('debugInfo');
+        const debugText = document.getElementById('debugText');
+
+        // Event Listeners
+        scanBtn.addEventListener('click', scanAllDevices);
+        connectBtn.addEventListener('click', connectToDevice);
+        alertBtn.addEventListener('click', sendAlert);
+        disconnectBtn.addEventListener('click', disconnect);
+        clearLogBtn.addEventListener('click', clearLog);
+
+        // Check Web Bluetooth support
+        function checkBluetoothSupport() {
+            const isHttps = window.location.protocol === 'https:' || 
+                           window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1';
+            
+            const browserInfo = `Browser: ${navigator.userAgent.includes('Chrome') ? 'Chrome' : 
+                                           navigator.userAgent.includes('Edge') ? 'Edge' : 
+                                           'Unknown'}<br>`;
+            const protocolInfo = `Protocol: ${window.location.protocol}<br>`;
+            const hostInfo = `Host: ${window.location.hostname}<br>`;
+            const bluetoothInfo = `Bluetooth API: ${navigator.bluetooth ? 'Available ✓' : 'Not Available ✗'}`;
+            
+            debugText.innerHTML = browserInfo + protocolInfo + hostInfo + bluetoothInfo;
+            debugInfo.style.display = 'block';
+
+            if (!navigator.bluetooth) {
+                log('❌ Web Bluetooth API not supported in this browser', 'error');
+                log('Please use Chrome or Edge browser', 'error');
+                scanBtn.disabled = true;
+                connectBtn.disabled = true;
+                return false;
+            }
+
+            if (!isHttps) {
+                log('⚠️ Warning: Not using HTTPS or localhost', 'warning');
+                log('Web Bluetooth may not work properly', 'warning');
+            }
+
+            log('✓ Web Bluetooth API available', 'success');
+            log('✓ Browser compatible', 'success');
+            return true;
+        }
+
+        // Scan for ANY BLE device (debugging)
+        async function scanAllDevices() {
+            try {
+                log('🔍 Scanning for ALL BLE devices...', 'info');
+                log('This will show all nearby BLE devices', 'info');
+                
+                // Accept all devices and all services
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [CONFIG.SERVICE_UUID]
+                });
+
+                log(`✓ Found device: ${device.name || 'Unnamed'} (${device.id})`, 'success');
+                log(`Device details: ID=${device.id}`, 'info');
+                
+                // Try to connect to see what services it has
+                log('Attempting to connect...', 'info');
+                const server = await device.gatt.connect();
+                log('✓ Connected! Discovering services...', 'success');
+                
+                try {
+                    const services = await server.getPrimaryServices();
+                    log(`Found ${services.length} services:`, 'info');
+                    services.forEach((service, index) => {
+                        log(`  Service ${index + 1}: ${service.uuid}`, 'info');
+                    });
+                } catch (e) {
+                    log(`Error getting services: ${e.message}`, 'warning');
+                }
+                
+                server.disconnect();
+                log('Disconnected from test device', 'info');
+                
+            } catch (error) {
+                log(`Scan error: ${error.message}`, 'error');
+                if (error.message.includes('User cancelled')) {
+                    log('User cancelled device selection', 'warning');
+                }
+            }
+        }
+
+        async function connectToDevice() {
+            try {
+                log('🔍 Scanning for FlutterAlertDevice...', 'info');
+                log('Make sure Flutter app is advertising!', 'warning');
+                
+                // Try with name filter first
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { name: CONFIG.DEVICE_NAME },
+                        { namePrefix: 'Flutter' }
+                    ],
+                    optionalServices: [CONFIG.SERVICE_UUID]
+                });
+
+                log(`✓ Device found: ${bluetoothDevice.name}`, 'success');
+                
+                // Listen for disconnection
+                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                
+                // Connect to GATT Server
+                log('Connecting to GATT Server...', 'info');
+                gattServer = await bluetoothDevice.gatt.connect();
+                
+                log('✓ Connected to GATT Server', 'success');
+                
+                // Get Primary Service
+                log('Getting primary service...', 'info');
+                const service = await gattServer.getPrimaryService(CONFIG.SERVICE_UUID);
+                
+                log('✓ Service acquired', 'success');
+                
+                // Get Characteristic
+                log('Getting characteristic...', 'info');
+                characteristic = await service.getCharacteristic(CONFIG.CHARACTERISTIC_UUID);
+                
+                log('✓ Characteristic acquired', 'success');
+                log('✅ FULL CONNECTION ESTABLISHED!', 'success');
+                
+                updateConnectionUI(true);
+                
+            } catch (error) {
+                log(`❌ Connection failed: ${error.message}`, 'error');
+                
+                if (error.message.includes('User cancelled')) {
+                    log('User cancelled device selection', 'warning');
+                } else if (error.message.includes('GATT')) {
+                    log('GATT connection error - device may not be advertising', 'error');
+                    log('Try: Restart Flutter app and start advertising', 'warning');
+                } else if (error.message.includes('Service')) {
+                    log('Service not found - UUID mismatch?', 'error');
+                } else {
+                    log('Try the "Scan for ANY BLE Device" button to debug', 'warning');
+                }
+                
+                updateConnectionUI(false);
+            }
+        }
+
+        async function sendAlert() {
+            if (!characteristic) {
+                log('❌ Not connected to device', 'error');
+                return;
+            }
+
+            try {
+                log('📤 Sending ALERT message...', 'warning');
+                
+                // Encode the string "ALERT" to bytes
+                const encoder = new TextEncoder();
+                const data = encoder.encode('ALERT');
+                
+                log(`Data to send: ALERT (${data.length} bytes)`, 'info');
+                
+                // Write to characteristic
+                await characteristic.writeValue(data);
+                
+                log('✅ ALERT sent successfully!', 'success');
+                showAlertMessage('✅ Alert sent successfully!', false);
+                
+            } catch (error) {
+                log(`❌ Failed to send alert: ${error.message}`, 'error');
+                showAlertMessage(`❌ Error: ${error.message}`, true);
+            }
+        }
+
+        async function disconnect() {
+            if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+                log('Disconnecting...', 'info');
+                bluetoothDevice.gatt.disconnect();
+            }
+        }
+
+        function onDisconnected() {
+            log('⚠️ Device disconnected', 'warning');
+            updateConnectionUI(false);
+            characteristic = null;
+            gattServer = null;
+        }
+
+        function updateConnectionUI(connected) {
+            if (connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Connected';
+                deviceName.textContent = bluetoothDevice ? bluetoothDevice.name : '—';
+                connectBtn.disabled = true;
+                scanBtn.disabled = true;
+                alertBtn.disabled = false;
+                disconnectBtn.disabled = false;
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Not Connected';
+                deviceName.textContent = '—';
+                connectBtn.disabled = false;
+                scanBtn.disabled = false;
+                alertBtn.disabled = true;
+                disconnectBtn.disabled = true;
+            }
+        }
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.innerHTML = `<span class="log-time">[${timestamp}]</span> ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function clearLog() {
+            logContainer.innerHTML = '<div class="log-entry log-info"><span class="log-time">[Cleared]</span> Log cleared</div>';
+            checkBluetoothSupport();
+        }
+
+        function showAlertMessage(message, isError = false) {
+            alertMessage.textContent = message;
+            alertMessage.classList.remove('error-message');
+            if (isError) {
+                alertMessage.classList.add('error-message');
+            }
+            alertMessage.classList.add('show');
+            setTimeout(() => {
+                alertMessage.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            log('🚀 Initializing Web Bluetooth Demo...', 'info');
+            checkBluetoothSupport();
+            log('Ready! Make sure your Flutter app is advertising', 'warning');
+        });
+    </script>
+</body>
+</html>
